@@ -1,4 +1,5 @@
 import Post from "../models/post.js";
+import { enqueuePublish } from "../queues/publish.queue.js";
 
 type Status = "draft" | "scheduled" | "published" | "failed";
 
@@ -38,7 +39,11 @@ export const deletePost = async (userId: string, id: string) => {
   await Post.deleteOne({ _id: id, user: userId });
 };
 
-export const updatePost = async (userId: string, id: string, data: { content: string }) => {
+export const updatePost = async (
+  userId: string,
+  id: string,
+  data: { content: string },
+) => {
   const post = await getPost(userId, id);
 
   if (post.status === "published") {
@@ -51,7 +56,11 @@ export const updatePost = async (userId: string, id: string, data: { content: st
   return post.save();
 };
 
-export const schedulePost = async (userId: string, id: string, scheduledAt: Date) => {
+export const schedulePost = async (
+  userId: string,
+  id: string,
+  scheduledAt: Date,
+) => {
   const post = await getPost(userId, id);
 
   if (post.status !== "draft") {
@@ -67,5 +76,17 @@ export const schedulePost = async (userId: string, id: string, scheduledAt: Date
 
   post.status = "scheduled";
   post.scheduledAt = scheduledAt;
-  return post.save();
+  await post.save();
+
+  try {
+    await enqueuePublish(post._id.toString(), scheduledAt);
+  } catch {
+    post.status = "draft";
+    post.set("scheduledAt", undefined);
+    await post.save();
+    const err: any = new Error("Scheduling service is unavailable, try again");
+    err.status = 503;
+    throw err;
+  }
+  return post;
 };
