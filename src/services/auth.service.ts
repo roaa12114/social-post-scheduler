@@ -29,7 +29,7 @@ export const loginUser = async ({ email, password }: { email: string; password: 
     throw err;
   }
 
-  if (!user.isActive) {                                  // ← الجديد
+  if (!user.isActive) {                                  
     const err: any = new Error("Account is deactivated");
     err.status = 403;
     throw err;
