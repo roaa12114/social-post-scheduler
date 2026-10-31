@@ -10,6 +10,8 @@ const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
   throw new Error("MONGO_URI is not defined in the environment variables");
 }
+if (!process.env.JWT_SECRET)
+  throw new Error("JWT_SECRET is not defined in the environment variables");
 
 const start = async () => {
   try {
@@ -17,7 +19,7 @@ const start = async () => {
     console.log("Connected to MongoDB");
 
     startPublishWorker();
-    const recovered = await publishDuePosts(); 
+    const recovered = await publishDuePosts();
     if (recovered > 0) console.log(`Recovered ${recovered} overdue post(s)`);
 
     app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));

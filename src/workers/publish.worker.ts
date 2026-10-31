@@ -10,7 +10,7 @@ export const startPublishWorker = () => {
       const { postId } = job.data as { postId: string };
 
       const post = await Post.findOneAndUpdate(
-        { _id: postId, status: "scheduled" },        
+        { _id: postId, status: "scheduled" },
         { $set: { status: "published", publishedAt: new Date() } },
       );
       return post ? "published" : "skipped";
@@ -18,15 +18,24 @@ export const startPublishWorker = () => {
     { connection: workerConnection, concurrency: 5, drainDelay: 30 },
   );
 
-  worker.on("completed", (job, result) => console.log(`Job ${job.id}: ${result}`));
+  worker.on("completed", (job, result) =>
+    console.log(`Job ${job.id}: ${result}`),
+  );
 
   worker.on("failed", async (job, err) => {
-    console.error(`Job ${job?.id} failed (attempt ${job?.attemptsMade}):`, err.message);
-    if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
-      await Post.updateOne(
-        { _id: job.data.postId, status: "scheduled" },
-        { $set: { status: "failed" } },
+    try {
+      console.error(
+        `Job ${job?.id} failed (attempt ${job?.attemptsMade}):`,
+        err.message,
       );
+      if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+        await Post.updateOne(
+          { _id: job.data.postId, status: "scheduled" },
+          { $set: { status: "failed" } },
+        );
+      }
+    } catch (e) {
+      console.error("Failed-handler error:", e);
     }
   });
 
